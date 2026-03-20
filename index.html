@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Dumb Charades 🎬</title>
+<script src="config.js"></script>
+<script src="movies/hollywood.js"></script>
+<script src="movies/bollywood.js"></script>
+<script src="movies/tollywood.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #1a0a2e 0%, #2d1b4e 50%, #0d1b3e 100%);
+    min-height: 100vh;
+    color: #f0e8ff;
+    overflow-x: hidden;
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; min-height: 100vh; flex-direction: column; align-items: center; padding: 20px 16px 40px; }
+  .screen.active { display: flex; }
+
+  /* ── GLASS CARD ── */
+  .card {
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 20px;
+    padding: 20px;
+    width: 100%;
+    max-width: 440px;
+  }
+
+  h1 { font-size: clamp(2rem,7vw,3rem); font-weight: 800; text-align: center; margin-bottom: 4px; }
+  h2 { font-size: clamp(1.2rem,4vw,1.6rem); font-weight: 700; text-align: center; margin-bottom: 16px; }
+  .subtitle { text-align: center; color: #c4a8ff; font-size: 0.95rem; margin-bottom: 24px; }
+  .section-label { font-size: 0.8rem; font-weight: 600; color: #a08ccc; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; margin-top: 18px; }
+
+  /* ── PILL FILTERS ── */
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+  .pill {
+    padding: 8px 16px; border-radius: 50px; border: 1.5px solid rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.06); color: #d0c0ff; font-size: 0.88rem; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; user-select: none;
+  }
+  .pill.active { background: #7c3aed; border-color: #a855f7; color: #fff; box-shadow: 0 0 12px rgba(168,85,247,0.4); }
+  .pill:active { transform: scale(0.95); }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: block; width: 100%; padding: 16px; border-radius: 14px; border: none;
+    font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
+    margin-top: 12px; text-align: center;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: linear-gradient(135deg, #7c3aed, #a855f7); color: #fff; box-shadow: 0 4px 20px rgba(168,85,247,0.4); }
+  .btn-success { background: linear-gradient(135deg, #059669, #10b981); color: #fff; box-shadow: 0 4px 20px rgba(16,185,129,0.4); }
+  .btn-danger  { background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; box-shadow: 0 4px 20px rgba(239,68,68,0.4); }
+  .btn-ghost   { background: rgba(255,255,255,0.08); color: #d0c0ff; border: 1.5px solid rgba(255,255,255,0.2); }
+  .btn-sm { padding: 11px; font-size: 0.95rem; border-radius: 12px; }
+
+  /* ── INPUTS ── */
+  input[type=text], input[type=number] {
+    width: 100%; padding: 13px 16px; border-radius: 12px; border: 1.5px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.07); color: #f0e8ff; font-size: 1rem; margin-bottom: 10px; outline: none;
+  }
+  input[type=text]:focus, input[type=number]:focus { border-color: #a855f7; }
+  input[type=text]::placeholder { color: #7a6a99; }
+  label { font-size: 0.88rem; color: #c4a8ff; display: block; margin-bottom: 4px; }
+
+  /* ── TEAMS TOGGLE ── */
+  .teams-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+  .team-opt { padding: 14px; border-radius: 14px; border: 2px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.06); text-align: center; cursor: pointer; transition: all 0.2s; }
+  .team-opt.active { border-color: #a855f7; background: rgba(168,85,247,0.2); }
+
+  /* ── ROLE SCREEN ── */
+  #roleScreen { justify-content: center; text-align: center; gap: 20px; }
+  .role-badge { font-size: 3.5rem; }
+  .role-team { font-size: 1.4rem; font-weight: 800; color: #a855f7; }
+  .role-instruction { color: #c4a8ff; font-size: 1rem; line-height: 1.6; }
+  .blur-hint { background: rgba(168,85,247,0.15); border: 1px solid #a855f7; border-radius: 12px; padding: 12px 16px; font-size: 0.9rem; color: #d0c0ff; margin-top: 8px; }
+
+  /* ── GAME SCREEN ── */
+  #gameScreen { justify-content: space-between; gap: 0; }
+  .game-top { display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 440px; padding: 8px 0; font-size: 0.9rem; color: #c4a8ff; }
+  .score-chip { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 5px 14px; font-weight: 700; color: #f0e8ff; }
+
+  /* Timer Ring */
+  .timer-wrap { position: relative; width: 110px; height: 110px; margin: 12px auto; flex-shrink: 0; }
+  .timer-svg { transform: rotate(-90deg); }
+  .timer-bg { fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 8; }
+  .timer-ring { fill: none; stroke: #a855f7; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 1s linear, stroke 0.5s; }
+  .timer-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 800; }
+
+  /* Movie Title */
+  .movie-card { width: 100%; max-width: 440px; }
+  .movie-label { font-size: 0.75rem; color: #a08ccc; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; text-align: center; }
+  .movie-title { font-size: clamp(1.6rem, 5.5vw, 2.8rem); font-weight: 900; text-align: center; line-height: 1.2; color: #fff; padding: 20px 10px; min-height: 110px; display: flex; align-items: center; justify-content: center; }
+  .movie-tag { text-align: center; margin-top: 6px; }
+  .tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 2px; }
+  .tag-lang { background: rgba(99,102,241,0.3); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.4); }
+  .tag-diff { background: rgba(245,158,11,0.2); color: #fcd34d; border: 1px solid rgba(245,158,11,0.35); }
+  .tag-pop  { background: rgba(16,185,129,0.2); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.35); }
+
+  /* Action Buttons */
+  .action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; max-width: 440px; margin-top: 10px; }
+  .action-btn { padding: 18px 10px; border-radius: 18px; border: none; font-size: 1rem; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.15s; }
+  .action-btn .icon { font-size: 1.8rem; }
+  .action-btn:active { transform: scale(0.93); }
+  .btn-correct { background: linear-gradient(135deg,#059669,#10b981); color:#fff; box-shadow: 0 6px 20px rgba(16,185,129,0.35); }
+  .btn-pass    { background: linear-gradient(135deg,#d97706,#f59e0b); color:#fff; box-shadow: 0 6px 20px rgba(245,158,11,0.3); }
+  .passes-left { text-align:center; font-size:0.8rem; color:#c4a8ff; margin-top:6px; }
+
+  /* ── ROUND END ── */
+  #roundEndScreen { justify-content: center; text-align: center; gap: 16px; }
+  .round-score { font-size: 4rem; font-weight: 900; color: #a855f7; }
+  .round-details { color: #c4a8ff; font-size: 1rem; }
+
+  /* ── RESULTS ── */
+  #resultsScreen { justify-content: center; text-align: center; gap: 14px; }
+  .winner-badge { font-size: 3.5rem; margin-bottom: 8px; }
+  .winner-text { font-size: 1.6rem; font-weight: 800; color: #ffd700; }
+  .scores-grid { display: grid; gap: 12px; width: 100%; max-width: 440px; margin-top: 8px; }
+  .score-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: rgba(255,255,255,0.07); border-radius: 14px; border: 1px solid rgba(255,255,255,0.12); }
+  .score-name { font-weight: 700; font-size: 1.05rem; }
+  .score-val  { font-size: 1.4rem; font-weight: 900; color: #a855f7; }
+
+  /* ── WARN ── */
+  .warn { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); border-radius: 12px; padding: 12px 16px; color: #fca5a5; font-size: 0.88rem; text-align: center; margin-top: 10px; display: none; }
+
+  /* ── EMOJI HEADER ── */
+  .emoji-header { font-size: 3rem; text-align: center; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════ HOME SCREEN ════════════════ -->
+<div id="homeScreen" class="screen active">
+  <div class="emoji-header">🎬</div>
+  <h1>Dumb Charades</h1>
+  <p class="subtitle">Act it out. No words. No sounds.</p>
+
+  <div class="card" style="max-width:440px;width:100%">
+    <div class="section-label">🎥 Language</div>
+    <div class="pills" id="langPills">
+      <div class="pill" data-val="hollywood">Hollywood</div>
+      <div class="pill" data-val="bollywood">Bollywood</div>
+      <div class="pill" data-val="tollywood">Tollywood</div>
+    </div>
+
+    <div class="section-label">⚡ Difficulty</div>
+    <div class="pills" id="diffPills">
+      <div class="pill" data-val="easy">Easy</div>
+      <div class="pill" data-val="medium">Medium</div>
+      <div class="pill" data-val="hard">Hard</div>
+    </div>
+
+    <div class="section-label">⭐ Popularity</div>
+    <div class="pills" id="popPills">
+      <div class="pill" data-val="popular">Popular</div>
+      <div class="pill" data-val="not-so-popular">Not So Popular</div>
+      <div class="pill" data-val="rarely-heard">Rarely Heard</div>
+    </div>
+
+    <div class="section-label">👥 Number of Teams</div>
+    <div class="teams-row">
+      <div class="team-opt active" data-teams="1">1 Team</div>
+      <div class="team-opt" data-teams="2">2 Teams</div>
+    </div>
+
+    <div id="filterWarn" class="warn">No movies match your filters! Try selecting fewer filters.</div>
+    <button class="btn btn-primary" onclick="startSetup()" style="margin-top:20px;font-size:1.2rem;padding:18px">🎬 Let's Play!</button>
+  </div>
+</div>
+
+<!-- ════════════════ TEAM SETUP SCREEN ════════════════ -->
+<div id="setupScreen" class="screen">
+  <h2 style="margin-top:10px">⚙️ Game Setup</h2>
+  <div class="card" style="max-width:440px;width:100%">
+    <label>Team 1 Name</label>
+    <input type="text" id="team1Name" placeholder="Team Awesome" maxlength="20">
+    <div id="team2NameWrap">
+      <label>Team 2 Name</label>
+      <input type="text" id="team2Name" placeholder="Team Legends" maxlength="20">
+    </div>
+    <label style="margin-top:6px">Rounds per team</label>
+    <input type="number" id="roundsInput" value="3" min="1" max="10">
+    <button class="btn btn-primary" onclick="startGame()" style="margin-top:8px">🚀 Start Game</button>
+    <button class="btn btn-ghost btn-sm" onclick="show('homeScreen')" style="margin-top:8px">← Back</button>
+  </div>
+</div>
+
+<!-- ════════════════ ROLE SCREEN ════════════════ -->
+<div id="roleScreen" class="screen">
+  <div class="role-badge">🎭</div>
+  <div class="role-team" id="roleTeamName">Team 1's Turn</div>
+  <div class="card" style="max-width:440px;width:100%;text-align:center">
+    <div class="role-instruction">The <strong>Actor</strong> should look at the movie title.<br>Everyone else — <strong>look away!</strong></div>
+    <div class="blur-hint">📵 Others: don't peek at the screen!</div>
+    <button class="btn btn-primary" onclick="revealMovie()" style="margin-top:20px;font-size:1.1rem">👁️ Show My Movie</button>
+  </div>
+  <div style="color:#7a6a99;font-size:0.82rem;margin-top:10px">Round <span id="roleRound">1</span> of <span id="roleTotalRounds">3</span></div>
+</div>
+
+<!-- ════════════════ GAME SCREEN ════════════════ -->
+<div id="gameScreen" class="screen">
+  <div class="game-top">
+    <div>Round <span id="gameRound">1</span>/<span id="gameTotalRounds">3</span></div>
+    <div class="score-chip" id="gameTeamLabel">Team 1</div>
+    <div>✅ <span id="gameCorrect">0</span> &nbsp; ⏭ <span id="gamePasses">0</span></div>
+  </div>
+
+  <div class="timer-wrap">
+    <svg class="timer-svg" width="110" height="110" viewBox="0 0 110 110">
+      <circle class="timer-bg" cx="55" cy="55" r="46"/>
+      <circle class="timer-ring" id="timerRing" cx="55" cy="55" r="46"
+        stroke-dasharray="289" stroke-dashoffset="0"/>
+    </svg>
+    <div class="timer-text" id="timerText">60</div>
+  </div>
+
+  <div class="card movie-card">
+    <div class="movie-label">🎬 Act this out!</div>
+    <div class="movie-title" id="movieTitle">Movie Title</div>
+    <div class="movie-tag" id="movieTags"></div>
+  </div>
+
+  <div class="action-row">
+    <button class="action-btn btn-correct" onclick="markCorrect()">
+      <span class="icon">✅</span>Correct!
+    </button>
+    <button class="action-btn btn-pass" id="passBtn" onclick="markPass()">
+      <span class="icon">⏭</span>Pass
+    </button>
+  </div>
+  <div class="passes-left" id="passesLeft"></div>
+</div>
+
+<!-- ════════════════ ROUND END SCREEN ════════════════ -->
+<div id="roundEndScreen" class="screen">
+  <div style="font-size:1rem;color:#c4a8ff" id="roundEndTeam">Team 1 finished!</div>
+  <div class="round-score" id="roundEndScore">0</div>
+  <div class="round-details" id="roundEndDetails">movies guessed correctly</div>
+  <div class="card" style="max-width:440px;width:100%;margin-top:10px">
+    <div id="roundEndScores" class="scores-grid"></div>
+  </div>
+  <button class="btn btn-primary" id="roundEndBtn" onclick="nextRound()" style="max-width:440px;width:100%">Next →</button>
+</div>
+
+<!-- ════════════════ RESULTS SCREEN ════════════════ -->
+<div id="resultsScreen" class="screen">
+  <div class="winner-badge" id="resultEmoji">🏆</div>
+  <div class="winner-text" id="winnerText">Team 1 Wins!</div>
+  <div class="scores-grid" style="max-width:440px;width:100%">
+    <div id="finalScores"></div>
+  </div>
+  <button class="btn btn-primary" onclick="resetGame()" style="max-width:440px;width:100%;margin-top:16px">🔄 Play Again</button>
+</div>
+
+<script>
+// ── STATE ──
+let state = {
+  langFilter: [],
+  diffFilter: [],
+  popFilter: [],
+  numTeams: 1,
+  teamNames: ['Team 1', 'Team 2'],
+  totalRounds: 3,
+  deck: [],
+  deckIdx: 0,
+  currentTeam: 0,
+  currentRound: 1,
+  scores: [0, 0],
+  roundCorrect: 0,
+  passes: 0,
+  timerInterval: null,
+  timeLeft: 60
+};
+
+// ── HELPERS ──
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function getSelected(containerId) {
+  return [...document.querySelectorAll(`#${containerId} .pill.active`)].map(p => p.dataset.val);
+}
+
+// ── PILL TOGGLE ──
+document.querySelectorAll('.pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    pill.classList.toggle('active');
+    document.getElementById('filterWarn').style.display = 'none';
+  });
+});
+
+// ── TEAMS TOGGLE ──
+document.querySelectorAll('.team-opt').forEach(opt => {
+  opt.addEventListener('click', () => {
+    document.querySelectorAll('.team-opt').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    state.numTeams = parseInt(opt.dataset.teams);
+    document.getElementById('team2NameWrap').style.display = state.numTeams === 2 ? 'block' : 'none';
+  });
+});
+
+// ── FILTER MOVIES ──
+function getFilteredMovies(langs, diffs, pops) {
+  let pool = [];
+  const allLangs = langs.length === 0;
+  const allDiffs = diffs.length === 0;
+  const allPops  = pops.length === 0;
+
+  const addWithTag = (arr, tag) => arr.filter(m =>
+    (allDiffs || diffs.includes(m.difficulty)) &&
+    (allPops  || pops.includes(m.popularity))
+  ).map(m => ({ ...m, lang: tag }));
+
+  if (allLangs || langs.includes('hollywood')) pool.push(...addWithTag(MOVIES_HOLLYWOOD, 'Hollywood'));
+  if (allLangs || langs.includes('bollywood')) pool.push(...addWithTag(MOVIES_BOLLYWOOD, 'Bollywood'));
+  if (allLangs || langs.includes('tollywood')) pool.push(...addWithTag(MOVIES_TOLLYWOOD, 'Tollywood'));
+
+  // Shuffle
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool;
+}
+
+// ── START SETUP ──
+function startSetup() {
+  const langs = getSelected('langPills');
+  const diffs = getSelected('diffPills');
+  const pops  = getSelected('popPills');
+  const movies = getFilteredMovies(langs, diffs, pops);
+  if (movies.length === 0) {
+    document.getElementById('filterWarn').style.display = 'block';
+    return;
+  }
+  state.langFilter = langs;
+  state.diffFilter = diffs;
+  state.popFilter  = pops;
+  document.getElementById('team2NameWrap').style.display = state.numTeams === 2 ? 'block' : 'none';
+  show('setupScreen');
+}
+
+// ── START GAME ──
+function startGame() {
+  state.teamNames[0] = document.getElementById('team1Name').value.trim() || 'Team 1';
+  state.teamNames[1] = document.getElementById('team2Name').value.trim() || 'Team 2';
+  state.totalRounds  = parseInt(document.getElementById('roundsInput').value) || 3;
+  state.scores       = [0, 0];
+  state.currentTeam  = 0;
+  state.currentRound = 1;
+  state.deck         = getFilteredMovies(state.langFilter, state.diffFilter, state.popFilter);
+  state.deckIdx      = 0;
+  showRoleScreen();
+}
+
+// ── ROLE SCREEN ──
+function showRoleScreen() {
+  document.getElementById('roleTeamName').textContent = state.teamNames[state.currentTeam] + "'s Turn";
+  document.getElementById('roleRound').textContent = state.currentRound;
+  document.getElementById('roleTotalRounds').textContent = state.totalRounds;
+  show('roleScreen');
+}
+
+// ── REVEAL MOVIE ──
+function revealMovie() {
+  if (state.deckIdx >= state.deck.length) {
+    state.deck = getFilteredMovies(state.langFilter, state.diffFilter, state.popFilter);
+    state.deckIdx = 0;
+  }
+  state.roundCorrect = 0;
+  state.passes = 0;
+  startRound();
+}
+
+// ── START ROUND ──
+function startRound() {
+  document.getElementById('gameTeamLabel').textContent = state.teamNames[state.currentTeam];
+  document.getElementById('gameRound').textContent = state.currentRound;
+  document.getElementById('gameTotalRounds').textContent = state.totalRounds;
+  document.getElementById('gameCorrect').textContent = state.roundCorrect;
+  document.getElementById('gamePasses').textContent = state.passes;
+  showCurrentMovie();
+  startTimer();
+  show('gameScreen');
+}
+
+function showCurrentMovie() {
+  if (state.deckIdx >= state.deck.length) {
+    state.deck = getFilteredMovies(state.langFilter, state.diffFilter, state.popFilter);
+    state.deckIdx = 0;
+  }
+  const m = state.deck[state.deckIdx];
+  document.getElementById('movieTitle').textContent = m.title;
+  const popLabel = { 'popular': 'Popular', 'not-so-popular': 'Not So Popular', 'rarely-heard': 'Rarely Heard' };
+  const diffLabel = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
+  document.getElementById('movieTags').innerHTML =
+    `<span class="tag tag-lang">${m.lang}</span>` +
+    `<span class="tag tag-diff">${diffLabel[m.difficulty]}</span>` +
+    `<span class="tag tag-pop">${popLabel[m.popularity]}</span>`;
+  updatePassBtn();
+}
+
+function updatePassBtn() {
+  const passesLeft = CONFIG.passLimit - state.passes;
+  document.getElementById('passesLeft').textContent = `Passes left: ${passesLeft}`;
+  document.getElementById('passBtn').disabled = passesLeft <= 0;
+  document.getElementById('passBtn').style.opacity = passesLeft <= 0 ? '0.4' : '1';
+}
+
+// ── TIMER ──
+const CIRCUMFERENCE = 2 * Math.PI * 46;
+function startTimer() {
+  state.timeLeft = CONFIG.timer;
+  updateTimerDisplay();
+  clearInterval(state.timerInterval);
+  state.timerInterval = setInterval(() => {
+    state.timeLeft--;
+    updateTimerDisplay();
+    if (state.timeLeft <= 0) endRound();
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const t = state.timeLeft;
+  document.getElementById('timerText').textContent = t;
+  const pct = t / CONFIG.timer;
+  const offset = CIRCUMFERENCE * (1 - pct);
+  const ring = document.getElementById('timerRing');
+  ring.style.strokeDashoffset = offset;
+  ring.style.stroke = t > 20 ? '#a855f7' : t > 10 ? '#f59e0b' : '#ef4444';
+}
+
+// ── MARK CORRECT ──
+function markCorrect() {
+  state.roundCorrect++;
+  state.scores[state.currentTeam]++;
+  document.getElementById('gameCorrect').textContent = state.roundCorrect;
+  state.deckIdx++;
+  showCurrentMovie();
+}
+
+// ── MARK PASS ──
+function markPass() {
+  if (state.passes >= CONFIG.passLimit) return;
+  state.passes++;
+  document.getElementById('gamePasses').textContent = state.passes;
+  state.deckIdx++;
+  showCurrentMovie();
+}
+
+// ── END ROUND ──
+function endRound() {
+  clearInterval(state.timerInterval);
+  document.getElementById('roundEndTeam').textContent = state.teamNames[state.currentTeam] + ' finished!';
+  document.getElementById('roundEndScore').textContent = state.roundCorrect;
+  document.getElementById('roundEndDetails').textContent = state.roundCorrect === 1 ? 'movie guessed correctly' : 'movies guessed correctly';
+
+  let scoresHtml = '';
+  for (let i = 0; i < state.numTeams; i++) {
+    scoresHtml += `<div class="score-row"><span class="score-name">${state.teamNames[i]}</span><span class="score-val">${state.scores[i]}</span></div>`;
+  }
+  document.getElementById('roundEndScores').innerHTML = scoresHtml;
+
+  // Determine next
+  const isLastTeam = (state.numTeams === 1) || (state.currentTeam === state.numTeams - 1);
+  const isLastRound = isLastTeam && state.currentRound >= state.totalRounds;
+  const btn = document.getElementById('roundEndBtn');
+  btn.textContent = isLastRound ? '🏆 See Results' : (isLastTeam ? `Round ${state.currentRound + 1} →` : `${state.teamNames[state.currentTeam + 1]}'s Turn →`);
+
+  show('roundEndScreen');
+}
+
+// ── NEXT ROUND ──
+function nextRound() {
+  const isLastTeam = (state.numTeams === 1) || (state.currentTeam === state.numTeams - 1);
+  if (isLastTeam) {
+    if (state.currentRound >= state.totalRounds) {
+      showResults();
+      return;
+    }
+    state.currentRound++;
+    state.currentTeam = 0;
+  } else {
+    state.currentTeam++;
+  }
+  state.deckIdx++;
+  showRoleScreen();
+}
+
+// ── RESULTS ──
+function showResults() {
+  let winnerIdx = 0, winnerScore = -1, isTie = false;
+  for (let i = 0; i < state.numTeams; i++) {
+    if (state.scores[i] > winnerScore) { winnerScore = state.scores[i]; winnerIdx = i; isTie = false; }
+    else if (state.scores[i] === winnerScore) isTie = true;
+  }
+
+  if (state.numTeams === 1) {
+    document.getElementById('resultEmoji').textContent = '⭐';
+    document.getElementById('winnerText').textContent = `${state.teamNames[0]} scored ${state.scores[0]}!`;
+  } else if (isTie) {
+    document.getElementById('resultEmoji').textContent = '🤝';
+    document.getElementById('winnerText').textContent = "It's a Tie!";
+  } else {
+    document.getElementById('resultEmoji').textContent = '🏆';
+    document.getElementById('winnerText').textContent = `${state.teamNames[winnerIdx]} Wins!`;
+  }
+
+  let html = '';
+  for (let i = 0; i < state.numTeams; i++) {
+    html += `<div class="score-row"><span class="score-name">${state.teamNames[i]}</span><span class="score-val">${state.scores[i]}</span></div>`;
+  }
+  document.getElementById('finalScores').innerHTML = html;
+  show('resultsScreen');
+}
+
+// ── RESET ──
+function resetGame() {
+  clearInterval(state.timerInterval);
+  show('homeScreen');
+}
+
+// Init
+document.getElementById('team2NameWrap').style.display = 'none';
+</script>
+</body>
+</html>
